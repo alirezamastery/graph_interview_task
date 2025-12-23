@@ -3,8 +3,10 @@ package todoctrl
 import (
 	"errors"
 	"fmt"
+	"github.com/alirezamastery/graph_task/middleware"
 	"github.com/alirezamastery/graph_task/models"
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"gorm.io/gorm"
 	"net/http"
 	"strconv"
@@ -34,7 +36,7 @@ type TodoListResponse struct {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /todos/{id} [get]
-func (controller *Controller) GetTodoItemByID() gin.HandlerFunc {
+func (ctl *Controller) GetTodoItemByID() gin.HandlerFunc {
 	type Response struct {
 		ID          uint   `json:"id"`
 		Title       string `json:"title"`
@@ -51,7 +53,7 @@ func (controller *Controller) GetTodoItemByID() gin.HandlerFunc {
 
 		var item models.TodoItem
 
-		if err := controller.db.First(&item, id).Error; err != nil {
+		if err := ctl.db.First(&item, id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
 				return
@@ -82,7 +84,7 @@ func (controller *Controller) GetTodoItemByID() gin.HandlerFunc {
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /todos [post]
-func (controller *Controller) CreateTodo() gin.HandlerFunc {
+func (ctl *Controller) CreateTodo() gin.HandlerFunc {
 	type Payload struct {
 		Title       string `json:"title"`
 		Description string `json:"description"`
@@ -105,6 +107,10 @@ func (controller *Controller) CreateTodo() gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
+		tr := otel.Tracer("todo")
+		_, span := tr.Start(c.Request.Context(), "CreateTodo")
+		defer span.End()
+
 		payload, err := validate(c)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -117,10 +123,12 @@ func (controller *Controller) CreateTodo() gin.HandlerFunc {
 			Description: payload.Description,
 			IsDone:      payload.IsDone,
 		}
-		if err := controller.db.Create(&item).Error; err != nil {
+		if err := ctl.db.Create(&item).Error; err != nil {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
+
+		middleware.TasksCount.Inc()
 
 		c.JSON(http.StatusCreated, item)
 	}
@@ -138,7 +146,7 @@ func (controller *Controller) CreateTodo() gin.HandlerFunc {
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /todos [get]
-func (controller *Controller) GetTodoItemList() gin.HandlerFunc {
+func (ctl *Controller) GetTodoItemList() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pageStr := c.Query("page")
 		if pageStr == "" {
@@ -170,7 +178,7 @@ func (controller *Controller) GetTodoItemList() gin.HandlerFunc {
 			pageSize = 100
 		}
 
-		query := controller.db.Model(&models.TodoItem{})
+		query := ctl.db.Model(&models.TodoItem{})
 
 		if doneStr := c.Query("is_done"); doneStr != "" {
 			done, err := strconv.ParseBool(doneStr)
@@ -224,7 +232,7 @@ func (controller *Controller) GetTodoItemList() gin.HandlerFunc {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /todos/{id} [patch]
-func (controller *Controller) UpdateTodoItem() gin.HandlerFunc {
+func (ctl *Controller) UpdateTodoItem() gin.HandlerFunc {
 	type Payload struct {
 		Title       *string `json:"title"`
 		Description *string `json:"description"`
@@ -271,7 +279,7 @@ func (controller *Controller) UpdateTodoItem() gin.HandlerFunc {
 		}
 
 		var item models.TodoItem
-		if err := controller.db.First(&item, id).Error; err != nil {
+		if err := ctl.db.First(&item, id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 				return
@@ -296,12 +304,12 @@ func (controller *Controller) UpdateTodoItem() gin.HandlerFunc {
 			return
 		}
 
-		if err := controller.db.Model(&item).Updates(updates).Error; err != nil {
+		if err := ctl.db.Model(&item).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
 
-		_ = controller.db.First(&item, id).Error
+		_ = ctl.db.First(&item, id).Error
 
 		res := &Response{
 			ID:          item.ID,
@@ -324,7 +332,7 @@ func (controller *Controller) UpdateTodoItem() gin.HandlerFunc {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /todos/{id} [delete]
-func (controller *Controller) DeleteTodoItem() gin.HandlerFunc {
+func (ctl *Controller) DeleteTodoItem() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
@@ -332,7 +340,7 @@ func (controller *Controller) DeleteTodoItem() gin.HandlerFunc {
 			return
 		}
 
-		res := controller.db.Delete(&models.TodoItem{}, id)
+		res := ctl.db.Delete(&models.TodoItem{}, id)
 		if res.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": res.Error.Error()})
 			return
@@ -341,6 +349,8 @@ func (controller *Controller) DeleteTodoItem() gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 			return
 		}
+
+		middleware.TasksCount.Dec()
 
 		c.Status(http.StatusNoContent)
 	}

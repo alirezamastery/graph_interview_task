@@ -29,14 +29,14 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "default": 1,
-                        "description": "page number (\u003e=1)",
+                        "description": "page number",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "default": 20,
-                        "description": "page size (1..100)",
+                        "description": "page size",
                         "name": "page_size",
                         "in": "query"
                     },

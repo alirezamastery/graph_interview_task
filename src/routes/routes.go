@@ -5,8 +5,10 @@ import (
 	todoctrl "github.com/alirezamastery/graph_task/controllers/todo"
 	"github.com/alirezamastery/graph_task/middleware"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/gorm"
 	"os"
 )
@@ -20,6 +22,8 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 
 	router := gin.Default()
 	router.Use(gin.Logger(), gin.Recovery())
+	router.Use(otelgin.Middleware("todo-api"))
+	router.Use(middleware.MetricsMiddleware())
 
 	middleware.SetupMiddlewares(router)
 
@@ -39,6 +43,10 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	// Swagger:
 	swagger.Config()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+
+	// Metrics:
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	router.Use(otelgin.Middleware("todo-api"))
 
 	return router
 }

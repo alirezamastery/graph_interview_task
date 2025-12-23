@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"github.com/alirezamastery/graph_task/middleware"
 	"github.com/alirezamastery/graph_task/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -44,4 +45,10 @@ func MigrateDB(db *gorm.DB) {
 	if err != nil {
 		log.Fatalln(fmt.Errorf("error migrating users: %v", err))
 	}
+}
+
+func InitTasksCount(db *gorm.DB) {
+	var n int64
+	_ = db.Model(&models.TodoItem{}).Count(&n).Error
+	middleware.TasksCount.Set(float64(n))
 }
