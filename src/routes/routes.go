@@ -21,7 +21,6 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	}
 
 	router := gin.Default()
-	router.Use(gin.Logger(), gin.Recovery())
 	router.Use(otelgin.Middleware("todo-api"))
 	router.Use(middleware.MetricsMiddleware())
 
@@ -31,10 +30,10 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	apiRouter := router.Group("/api")
 
 	todo := todoctrl.NewTodoController(db)
-	todoRouter := apiRouter.Group("task")
+	todoRouter := apiRouter.Group("/task")
 	{
-		todoRouter.GET("/todos/", todo.GetTodoItemList())
-		todoRouter.POST("/todos/", todo.CreateTodo())
+		todoRouter.GET("/todos", todo.GetTodoItemList())
+		todoRouter.POST("/todos", todo.CreateTodo())
 		todoRouter.GET("/todos/:id", todo.GetTodoItemByID())
 		todoRouter.PATCH("/todos/:id", todo.UpdateTodoItem())
 		todoRouter.DELETE("/todos/:id", todo.DeleteTodoItem())
@@ -46,7 +45,6 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 
 	// Metrics:
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	router.Use(otelgin.Middleware("todo-api"))
 
 	return router
 }
