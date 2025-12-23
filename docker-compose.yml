@@ -1,0 +1,29 @@
+services:
+  go-be:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    stop_grace_period: '1s'
+    env_file:
+      - ./env/.go.env
+    ports:
+      - '8000:8000'
+    depends_on:
+      db:
+        condition: service_healthy
+  # -----------------------------------------------------------
+  db:
+    image: postgres:17.2
+    stop_grace_period: '0.1s'
+    restart: unless-stopped
+    ports:
+      - '5450:5432'
+    volumes:
+      - ./data/pg:/var/lib/postgresql/data/
+    env_file:
+      - ./env/.postgres.env
+    healthcheck:
+      test: [ "CMD-SHELL", "psql -U $$POSTGRES_USER -d $$POSTGRES_DB -c 'SELECT 1' || exit 1" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10

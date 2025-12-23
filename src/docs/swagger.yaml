@@ -1,0 +1,238 @@
+definitions:
+  models.TodoItem:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_done:
+        type: boolean
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  todoctrl.CreateTodo.Payload:
+    properties:
+      description:
+        type: string
+      is_done:
+        type: boolean
+      title:
+        type: string
+    type: object
+  todoctrl.ErrorResponse:
+    properties:
+      error:
+        example: something went wrong
+        type: string
+    type: object
+  todoctrl.TodoListResponse:
+    properties:
+      count:
+        example: 42
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/models.TodoItem'
+        type: array
+      page:
+        example: 1
+        type: integer
+      page_count:
+        example: 3
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+    type: object
+  todoctrl.UpdateTodoItem.Payload:
+    properties:
+      description:
+        type: string
+      is_done:
+        type: boolean
+      title:
+        type: string
+    type: object
+  todoctrl.UpdateTodoItem.Response:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      is_done:
+        type: boolean
+      title:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /todos:
+    get:
+      description: List todos with optional done filter and pagination
+      parameters:
+      - default: 1
+        description: page number (>=1)
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: page size (1..100)
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by is_done
+        in: query
+        name: done
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/todoctrl.TodoListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+      summary: List todos
+      tags:
+      - todos
+    post:
+      consumes:
+      - application/json
+      description: Create a new todo item
+      parameters:
+      - description: Todo payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/todoctrl.CreateTodo.Payload'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.TodoItem'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+      summary: Create todo item
+      tags:
+      - todos
+  /todos/{id}:
+    delete:
+      description: Delete a todo item by ID
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+      summary: Delete a todo
+      tags:
+      - todos
+    get:
+      description: Get a todo item by ID
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TodoItem'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+      summary: Get a todo
+      tags:
+      - todos
+    patch:
+      consumes:
+      - application/json
+      description: Update a todo item
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Fields to update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/todoctrl.UpdateTodoItem.Payload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/todoctrl.UpdateTodoItem.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/todoctrl.ErrorResponse'
+      summary: Update a todo
+      tags:
+      - todos
+swagger: "2.0"
